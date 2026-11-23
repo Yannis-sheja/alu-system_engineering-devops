@@ -1,23 +1,46 @@
 #!/usr/bin/env bash
-# Configures Nginx with a 301 redirect and a custom 404 page containing Ceci n'est pas une page
+# Configures a brand new Ubuntu machine: nginx on port 80, home page,
+# 301 redirect on /redirect_me, and a custom 404 page.
+
+# 1. Install nginx
 apt-get update -y
 apt-get install -y nginx
-echo "Holberton School for the win!" >/var/www/html/index.html
-echo "Ceci n'est pas une page" >/var/www/html/404.html
-cat <<"EOF" >/etc/nginx/sites-available/default
+
+# 2. Create the pages
+mkdir -p /var/www/html
+echo "Holberton School for the win!" > /var/www/html/index.html
+echo "Ceci n'est pas une page" > /var/www/html/404.html
+
+# 3. Write the full nginx site config (quoted heredoc keeps $uri intact)
+cat > /etc/nginx/sites-available/default <<'EOF'
 server {
-  listen 80 default_server;
-  root /var/www/html/;
-  index index.html;
-  server_name _;
-  rewrite ^/redirect_me/?$ https://www.youtube.com/watch?v=QH2-TGUlwu4 permanent;
-  error_page 404 /404.html;
-  location = /404.html {
-    internal;
-  }
-  location / {
-    try_files $uri $uri/ =404;
-  }
+    listen 80 default_server;
+    listen [::]:80 default_server;
+
+    root /var/www/html;
+    index index.html index.htm;
+    server_name _;
+
+    # Task 3: 301 redirect
+    location /redirect_me {
+        return 301 https://www.youtube.com/watch?v=QH2-TGUlwu4;
+    }
+
+    # Task 4: custom 404 page
+    error_page 404 /404.html;
+    location = /404.html {
+        internal;
+    }
+
+    location / {
+        try_files $uri $uri/ =404;
+    }
 }
 EOF
+
+# 4. Make sure the site is enabled
+ln -sf /etc/nginx/sites-available/default /etc/nginx/sites-enabled/default
+
+# 5. Test the config, then restart without systemctl
+nginx -t
 service nginx restart
