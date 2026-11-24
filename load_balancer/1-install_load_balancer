@@ -26,10 +26,15 @@ global
     user haproxy
     group haproxy
     daemon
+    h1-case-adjust x-served-by X-Served-By
+    h1-case-adjust server Server
+    h1-case-adjust content-type Content-Type
+    h1-case-adjust content-length Content-Length
 
 defaults
     log global
     mode http
+    option h1-case-adjust-bogus-client
     option httplog
     option dontlognull
     timeout connect 5000
@@ -49,4 +54,11 @@ backend web-servers
 EOF
 
 haproxy -c -f /etc/haproxy/haproxy.cfg
+
+# Free port 80 if another web server is holding it
+for svc in nginx apache2; do
+    service "$svc" stop > /dev/null 2>&1
+done
+
 service haproxy restart
+
