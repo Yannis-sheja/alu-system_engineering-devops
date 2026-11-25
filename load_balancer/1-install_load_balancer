@@ -1,64 +1,30 @@
 #!/usr/bin/env bash
-# Installs and configures HAProxy to round-robin traffic
-# between web-01 and web-02. Safe to run multiple times.
+# Configures HAProxy as a round-robin load balancer for web-01 and web-02
 
-apt-get update -y
-apt-get install -y haproxy
+sudo apt-get update
+sudo apt-get install -y haproxy
 
-# Enable the init script (needed on older Ubuntu versions)
-if [ -f /etc/default/haproxy ]; then
-    sed -i 's/^ENABLED=.*/ENABLED=1/' /etc/default/haproxy
-fi
-
-# Keep one backup of the original package config
-if [ ! -f /etc/haproxy/haproxy.cfg.orig ]; then
-    cp /etc/haproxy/haproxy.cfg /etc/haproxy/haproxy.cfg.orig
-fi
-
-# Overwrite (not append) so re-running never duplicates sections
-cat > /etc/haproxy/haproxy.cfg <<'EOF'
+sudo tee /etc/haproxy/haproxy.cfg > /dev/null <<'EOF'
 global
-    log /dev/log local0
-    log /dev/log local1 notice
-    chroot /var/lib/haproxy
-    stats socket /run/haproxy/admin.sock mode 660 level admin expose-fd listeners
-    stats timeout 30s
-    user haproxy
-    group haproxy
-    daemon
+    maxconn 2000
     h1-case-adjust x-served-by X-Served-By
-    h1-case-adjust server Server
-    h1-case-adjust content-type Content-Type
-    h1-case-adjust content-length Content-Length
 
 defaults
-    log global
     mode http
     option h1-case-adjust-bogus-client
-    option httplog
-    option dontlognull
-    timeout connect 5000
-    timeout client 50000
-    timeout server 50000
+    timeout connect 5s
+    timeout client 50s
+    timeout server 50s
 
-frontend http-in
+frontend myfrontend
     bind *:80
-    mode http
     default_backend web-servers
 
 backend web-servers
-    mode http
     balance roundrobin
+    option httpchk GET /
     server 7402-web-01 18.170.217.131:80 check
     server 7402-web-02 18.132.98.220:80 check
 EOF
 
-haproxy -c -f /etc/haproxy/haproxy.cfg
-
-# Free port 80 if another web server is holding it
-for svc in nginx apache2; do
-    service "$svc" stop > /dev/null 2>&1
-done
-
-service haproxy restart
-
+sudo service haproxy restart
