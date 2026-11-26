@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+# Starts Apache and makes it serve a page containing Hello Holberton at the root
+service apache2 restart
+echo "Hello Holberton" > /var/www/html/index.html
